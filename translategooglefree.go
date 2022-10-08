@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
+	"net/url"
 	"strings"
 
 	"github.com/robertkrimen/otto"
@@ -39,14 +40,17 @@ func Translate(source, sourceLang, targetLang string) (string, error) {
 	var text []string
 	var result []interface{}
 
-	encodedSource, err := encodeURI(source)
+	/*encodedSource, err := encodeURI(source)
 	if err != nil {
 		return "err", err
-	}
-	url := "https://translate.googleapis.com/translate_a/single?client=gtx&sl=" +
+	}*/
+
+	encodedSource := url.QueryEscape(source)
+
+	uri := "https://translate.googleapis.com/translate_a/single?client=gtx&sl=" +
 		sourceLang + "&tl=" + targetLang + "&dt=t&q=" + encodedSource
 
-	r, err := http.Get(url)
+	r, err := http.Get(uri)
 	if err != nil {
 		return "err", errors.New("Error getting translate.googleapis.com")
 	}
