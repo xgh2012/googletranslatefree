@@ -36,7 +36,7 @@ func encodeURI(s string) (string, error) {
 	return v, nil
 }
 
-func Translate(source, sourceLang, targetLang string) (string, error) {
+func Translate(source, sourceLang, targetLang string) (string, string, error) {
 	var text []string
 	var result []interface{}
 
@@ -52,27 +52,30 @@ func Translate(source, sourceLang, targetLang string) (string, error) {
 
 	r, err := http.Get(uri)
 	if err != nil {
-		return "err", errors.New("Error getting translate.googleapis.com")
+		return "err", "", errors.New("Error getting translate.googleapis.com")
 	}
 	defer r.Body.Close()
 
 	body, err := ioutil.ReadAll(r.Body)
 	if err != nil {
-		return "err", errors.New("Error reading response body")
+		return "err", "", errors.New("Error reading response body")
 	}
 
 	bReq := strings.Contains(string(body), `<title>Error 400 (Bad Request)`)
 	if bReq {
-		return "err", errors.New("Error 400 (Bad Request)")
+		return "err", "", errors.New("Error 400 (Bad Request)")
 	}
 
 	err = json.Unmarshal(body, &result)
 	if err != nil {
-		return "err", errors.New("Error unmarshaling data")
+		return "err", "", errors.New("Error unmarshaling data")
 	}
 
 	if len(result) > 0 {
 		inner := result[0]
+		if inner == nil {
+			return "err", "", errors.New("Error result data")
+		}
 		for _, slice := range inner.([]interface{}) {
 			for _, translatedText := range slice.([]interface{}) {
 				text = append(text, fmt.Sprintf("%v", translatedText))
@@ -81,8 +84,12 @@ func Translate(source, sourceLang, targetLang string) (string, error) {
 		}
 		cText := strings.Join(text, "")
 
-		return cText, nil
+		lang := "auto"
+		if len(result) > 3 {
+			lang = result[2].(string)
+		}
+		return cText, lang, nil
 	} else {
-		return "err", errors.New("No translated data in responce")
+		return "err", "", errors.New("No translated data in responce")
 	}
 }
