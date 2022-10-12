@@ -1,13 +1,15 @@
 package translategooglefree
 
 import (
-	"github.com/stretchr/testify/assert"
+	"fmt"
 	"testing"
 )
 
-func TestEncodeURI(t *testing.T) {
-	test := `Just test string.`
-	must := `Just%20test%20string.`
-	result, _ := encodeURI(test)
-	assert.Equal(t, must, result, "Must be equal.")
+func TestNewClient(t *testing.T) {
+	cfg := &Config{
+		TimeOut: 10,
+		Proxy:   "http://127.0.0.1:1080/",
+	}
+	result, lang, err := NewClient(cfg).Translate("这是测试数据", "zh-CN", "en")
+	fmt.Println(result, lang, err)
 }

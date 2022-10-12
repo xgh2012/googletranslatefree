@@ -1,6 +1,7 @@
 package translategooglefree
 
 import (
+	"crypto/tls"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -8,35 +9,43 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
-
-	"github.com/robertkrimen/otto"
+	"time"
 )
 
-// javascript "encodeURI()"
-// so we embed js to our golang programm
-func encodeURI(s string) (string, error) {
-	eUri := `eUri = encodeURI(sourceText);`
-	vm := otto.New()
-	err := vm.Set("sourceText", s)
-	if err != nil {
-		return "err", errors.New("Error setting js variable")
-	}
-	_, err = vm.Run(eUri)
-	if err != nil {
-		return "err", errors.New("Error executing jscript")
-	}
-	val, err := vm.Get("eUri")
-	if err != nil {
-		return "err", errors.New("Error getting variable value from js")
-	}
-	v, err := val.ToString()
-	if err != nil {
-		return "err", errors.New("Error converting js var to string")
-	}
-	return v, nil
+type Config struct {
+	Proxy   string
+	TimeOut int
 }
 
-func Translate(source, sourceLang, targetLang string) (string, string, error) {
+type TranslateGoogle struct {
+	Config *Config
+	Client *http.Client
+}
+
+func NewClient(cfg *Config) *TranslateGoogle {
+	transport := &http.Transport{}
+	proxy := strings.TrimSpace(cfg.Proxy)
+	if strings.HasPrefix(proxy, "http") {
+		proxyUrl, _ := url.Parse(proxy)
+		transport.Proxy = http.ProxyURL(proxyUrl)                         // set proxy
+		transport.TLSClientConfig = &tls.Config{InsecureSkipVerify: true} // skip verify
+	}
+
+	timeOut := cfg.TimeOut
+	if timeOut == 0 {
+		timeOut = 20
+	}
+
+	return &TranslateGoogle{
+		Config: cfg,
+		Client: &http.Client{
+			Timeout:   time.Duration(timeOut) * time.Second,
+			Transport: transport,
+		},
+	}
+}
+
+func (tsl *TranslateGoogle) Translate(source, sourceLang, targetLang string) (string, string, error) {
 	var text []string
 	var result []interface{}
 
@@ -50,7 +59,9 @@ func Translate(source, sourceLang, targetLang string) (string, string, error) {
 	uri := "https://translate.googleapis.com/translate_a/single?client=gtx&sl=" +
 		sourceLang + "&tl=" + targetLang + "&dt=t&q=" + encodedSource
 
-	r, err := http.Get(uri)
+	//r, err := http.Get(uri)
+
+	r, err := tsl.Client.Get(uri)
 	if err != nil {
 		return "err", "", errors.New("Error getting translate.googleapis.com")
 	}
